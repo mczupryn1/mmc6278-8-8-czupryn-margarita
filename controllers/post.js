@@ -2,26 +2,31 @@ const { Post, Tag } = require('../models')
 
 async function create(req, res, next) {
   const {title, body, tags} = req.body
-  // TODO: create a new post
-  // if there is no title or body, return a 400 status
-  // omitting tags is OK
-  // create a new post using title, body, and tags
-  // return the new post as json and a 200 status
+  if (!title || !body) {
+    return res.status(400).send('Title and body are required')
+  }
+  try {
+    const post = new Post({ title, body, tags })
+    const savedPost = await post.save()
+    res.status(200).json(savedPost)
+  } catch(err) {
+    next(err)
+  }
 }
 
-// should render HTML
 async function get(req, res) {
   try {
     const slug = req.params.slug
-    // TODO: Find a single post
-    // find a single post by slug and populate 'tags'
-    // you will need to use .lean() or .toObject()
+    let post = await Post.findOne({ slug }).populate('tags').lean()
+    if (!post) {
+      return res.status(404).send('Post not found')
+    }
     post.createdAt = new Date(post.createdAt).toLocaleString('en-US', {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric',
     })
-    post.comments.map(comment => {
+    post.comments = post.comments.map(comment => {
       comment.createdAt = new Date(comment.createdAt).toLocaleString('en-US', {
         month: '2-digit',
         day: '2-digit',
@@ -72,14 +77,17 @@ async function getAll(req, res) {
 }
 
 async function update(req, res) {
+  const {title, body, tags} = req.body
+  const postId = req.params.id
+  if (!title || !body) {
+    return res.status(400).send('Title and body are required')
+  }
   try {
-    const {title, body, tags} = req.body
-    const postId = req.params.id
-    // TODO: update a post
-    // if there is no title or body, return a 400 status
-    // omitting tags is OK
-    // find and update the post with the title, body, and tags
-    // return the updated post as json
+    const updatedPost = await Post.findByIdAndUpdate(postId, { title, body, tags }, { new: true })
+    if (!updatedPost) {
+      return res.status(404).send('Post not found')
+    }
+    res.status(200).json(updatedPost)
   } catch(err) {
     res.status(500).send(err.message)
   }
@@ -87,8 +95,15 @@ async function update(req, res) {
 
 async function remove(req, res, next) {
   const postId = req.params.id
-  // TODO: Delete a post
-  // delete post by id, return a 200 status
+  try {
+    const removedPost = await Post.findByIdAndRemove(postId)
+    if (!removedPost) {
+      return res.status(404).send('Post not found')
+    }
+    res.status(200).send('Post deleted')
+  } catch(err) {
+    next(err)
+  }
 }
 
 module.exports = {
